@@ -1,12 +1,13 @@
-  pragma solidity ^0.4.25;
+pragma solidity ^0.4.25;
 
 import "./ERC20TokenInterface.sol";
 import "./LockDB.sol";
 import "./PosDB.sol";
 import "./PosoutDB.sol";
 import "./PermissionCtl.sol";
+import "./Events.sol";
 
-contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl
+contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
 {
   /*********************************** 必须设定的合约初始参数 ***********************************/
   uint256 public totalSupply = 5000000000 * 10 ** 8;
@@ -113,7 +114,9 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl
 
     PosDB.Record memory newRecord = PosDB.Record(amount, now, 0);
 
-    return PosDBTable.AddRecord(msg.sender, newRecord);
+    success = PosDBTable.AddRecord(msg.sender, newRecord);
+    
+    emit Events.OnCreatePosRecord(amount);
   }
 
   // 获取记录中的Pos收益
@@ -181,11 +184,38 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl
     return ( posamount, record.depositTime, record.lastWithDrawTime, posProfit );
   }
 
+  // 提取参与Pos的余额与收益，解除合约
+  function RescissionPosAt(uint posRecordIndex)
+  public
+  returns (uint256 posProfit, uint256 amount, uint256 distantPosoutTime)
+  {
+    (posProfit, amount, distantPosoutTime) = getPosRecordProfit(msg.sender, posRecordIndex);
+
+    PosDBTable.recordMapping[msg.sender][posRecordIndex].lastWithDrawTime = distantPosoutTime;
+
+    if ( PosDBTable.RemoveRecord(msg.sender, posRecordIndex) )
+    {
+      _balanceMap[msg.sender] += amount;
+        
+      if (enableWithDrawPosProfit)
+      {
+        _balanceMap[msg.sender] += posProfit;
+        _balanceMap[this] -= posProfit;
+      }
+    }
+ 
+    emit Events.OnRescissionPosRecord(
+        amount,
+        PosDBTable.recordMapping[msg.sender][posRecordIndex].depositTime,
+        PosDBTable.recordMapping[msg.sender][posRecordIndex].lastWithDrawTime,
+        posProfit,
+        enableWithDrawPosProfit);
+  }
 
   // 一次性提取所有Pos参与记录的本金和收益
   function RescissionPosAll()
   public
-  returns (uint256 sum)
+  returns (uint256 amountTotalSum, uint256 profitTotalSum)
   {
     uint recordCount = PosDBTable.recordMapping[msg.sender].length;
 
@@ -195,31 +225,20 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl
 
       if ( PosDBTable.RemoveRecord(msg.sender, 0) )
       {
-        sum += (amount + posProfit);
-        _balanceMap[msg.sender] += (amount + posProfit);
-        _balanceMap[this] -= posProfit;
+        amountTotalSum += amount;
+        profitTotalSum += posProfit;
+        
+        _balanceMap[msg.sender] += amount;
+        
+        if (enableWithDrawPosProfit)
+        {
+          _balanceMap[this] -= posProfit;
+          _balanceMap[msg.sender] += posProfit;
+        }
       }
     }
-  }
-
-  // 提取参与Pos的余额与收益，解除合约
-  function RescissionPosAt(uint posRecordIndex)
-  public
-  returns (bool success)
-  {
-    (uint256 posProfit, uint256 amount, uint256 distantPosoutTime) = getPosRecordProfit(msg.sender, posRecordIndex);
-
-    PosDBTable.recordMapping[msg.sender][posRecordIndex].lastWithDrawTime = distantPosoutTime;
-
-    if ( PosDBTable.RemoveRecord(msg.sender, posRecordIndex) )
-    {
-      _balanceMap[msg.sender] += (amount + posProfit);
-      _balanceMap[this] -= posProfit;
-
-      return true;
-    }
-
-    return false;
+    
+    emit Events.OnRescissionPosRecordAll(amountTotalSum, profitTotalSum, enableWithDrawPosProfit);
   }
 
   // 获取当前参与Pos的数额总量
@@ -274,8 +293,19 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl
 
     PosDBTable.recordMapping[msg.sender][posRecordIndex].lastWithDrawTime = distantPosoutTime;
 
-    _balanceMap[this] -= profit;
-    _balanceMap[msg.sender] += profit;
+    if (enableWithDrawPosProfit)
+    {
+      _balanceMap[this] -= profit;
+      _balanceMap[msg.sender] += profit;
+    }
+   
+    emit Events.OnWithdrawPosRecordPofit(
+        posAmount, 
+        PosDBTable.recordMapping[msg.sender][posRecordIndex].depositTime,
+        distantPosoutTime,
+        profit,
+        enableWithDrawPosProfit
+        );
   }
 
   // 提取所有Pos记录产生的收益
@@ -289,11 +319,20 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl
 
       PosDBTable.recordMapping[msg.sender][ri].lastWithDrawTime = distantPosoutTime;
 
-      _balanceMap[this] -= posProfit;
-      _balanceMap[msg.sender] += posProfit;
+      if (enableWithDrawPosProfit)
+      {
+        _balanceMap[this] -= posProfit;
+        _balanceMap[msg.sender] += posProfit;
+      }
 
       profitSum += posProfit;
       posAmountSum += amount;
+    
+      emit Events.OnWithdrawPosRecordPofitAll(
+          posAmountSum, 
+          profitSum, 
+          enableWithDrawPosProfit
+          );
     }
   }
 
@@ -392,17 +431,27 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl
   public
   returns (uint256 profit)
   {
-    uint256 profitRet = getLockRecordProfit(msg.sender, rid);
+    profit = getLockRecordProfit(msg.sender, rid);
 
-    if ( profitRet > 0 )
+    LockDB.Record storage lockRecord = LockDBTable.recordMapping[msg.sender][rid];
+
+    if ( profit > 0 )
     {
-      LockDBTable.recordMapping[msg.sender][rid].withdrawAmount += profitRet;
-      LockDBTable.recordMapping[msg.sender][rid].lastWithdrawTime = now;
+      lockRecord.withdrawAmount += profit;
+      lockRecord.lastWithdrawTime = now;
 
-      _balanceMap[msg.sender] += profitRet;
+      _balanceMap[msg.sender] += profit;
+      
+      emit Events.OnWithdrawLockRecord(
+            profit,
+            lockRecord.totalAmount,
+            lockRecord.withdrawAmount,
+            lockRecord.lastWithdrawTime,
+            lockRecord.lockDays,
+            lockRecord.createTime
+        );
     }
-
-    return profitRet;
+    
   }
 
   // 提取所有锁仓记录的释放量
@@ -410,26 +459,35 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl
   public
   returns (uint256 profitTotal)
   {
-    LockDB.Record[] memory list = LockDBTable.GetRecordList(msg.sender);
+    LockDB.Record[] storage list = LockDBTable.recordMapping[msg.sender];
 
-    uint256 ret = 0;
+    uint lockAmountTotalSum = 0;
 
     for (uint i = 0; i < list.length; i++)
     {
       uint256 profitRet = getLockRecordProfit(msg.sender, i);
+      
+      lockAmountTotalSum += list[i].totalAmount;
 
       if ( profitRet > 0 )
       {
-        LockDBTable.recordMapping[msg.sender][i].withdrawAmount += profitRet;
-        LockDBTable.recordMapping[msg.sender][i].lastWithdrawTime = now;
+        list[i].withdrawAmount += profitRet;
+        list[i].lastWithdrawTime = now;
 
         _balanceMap[msg.sender] += profitRet;
-
-        ret += profitRet;
+        
+        profitTotal += profitRet;
       }
     }
 
-    return ret;
+    if (profitTotal > 0)
+    {
+        emit Events.OnWithdrawLockRecordAll(
+            lockAmountTotalSum,
+            profitTotal
+            );
+    }
+
   }
 
   // 设置开始解仓时间
@@ -450,14 +508,19 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl
 
     require( _balanceMap[this] >= total && total > 0);
 
-    // 测试方便，时间直接后推移10日
-    /* LockDB.Record memory newRecord = LockDB.Record( total, 0, 0, lockDays, now ); */
-    LockDB.Record memory newRecord = LockDB.Record( total, 0, 0, lockDays, now - 10 days );
-
+    LockDB.Record memory newRecord = LockDB.Record( total, 0, 0, lockDays, now );
+    
     if ( LockDBTable.AddRecord(_to, newRecord) )
     {
       // 在锁仓时候直接减少总量，释放时候不在减少总量
       _balanceMap[this] -= total;
+      
+      emit Events.OnSendLockAmount(
+          _to,
+          lockAmountTotal,
+          lockDays
+        );
+    
       return true;
     }
 

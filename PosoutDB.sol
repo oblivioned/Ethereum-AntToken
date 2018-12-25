@@ -1,6 +1,6 @@
-  pragma solidity ^0.4.25;
+pragma solidity ^0.4.25;
 
-  library PosoutDB {
+library PosoutDB {
 
     // Pos结果
     struct Record {
@@ -54,4 +54,4 @@
 
       return true;
     }
-  }
+}
