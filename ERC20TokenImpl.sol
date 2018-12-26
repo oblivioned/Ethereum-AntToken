@@ -115,7 +115,7 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
     PosDB.Record memory newRecord = PosDB.Record(amount, now, 0);
 
     success = PosDBTable.AddRecord(msg.sender, newRecord);
-    
+
     emit Events.OnCreatePosRecord(amount);
   }
 
@@ -196,14 +196,14 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
     if ( PosDBTable.RemoveRecord(msg.sender, posRecordIndex) )
     {
       _balanceMap[msg.sender] += amount;
-        
+
       if (enableWithDrawPosProfit)
       {
         _balanceMap[msg.sender] += posProfit;
         _balanceMap[this] -= posProfit;
       }
     }
- 
+
     emit Events.OnRescissionPosRecord(
         amount,
         PosDBTable.recordMapping[msg.sender][posRecordIndex].depositTime,
@@ -227,9 +227,9 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
       {
         amountTotalSum += amount;
         profitTotalSum += posProfit;
-        
+
         _balanceMap[msg.sender] += amount;
-        
+
         if (enableWithDrawPosProfit)
         {
           _balanceMap[this] -= posProfit;
@@ -237,7 +237,7 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
         }
       }
     }
-    
+
     emit Events.OnRescissionPosRecordAll(amountTotalSum, profitTotalSum, enableWithDrawPosProfit);
   }
 
@@ -298,9 +298,9 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
       _balanceMap[this] -= profit;
       _balanceMap[msg.sender] += profit;
     }
-   
+
     emit Events.OnWithdrawPosRecordPofit(
-        posAmount, 
+        posAmount,
         PosDBTable.recordMapping[msg.sender][posRecordIndex].depositTime,
         distantPosoutTime,
         profit,
@@ -327,10 +327,10 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
 
       profitSum += posProfit;
       posAmountSum += amount;
-    
+
       emit Events.OnWithdrawPosRecordPofitAll(
-          posAmountSum, 
-          profitSum, 
+          posAmountSum,
+          profitSum,
           enableWithDrawPosProfit
           );
     }
@@ -344,9 +344,7 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
   constant
   returns (uint256 count)
   {
-     LockDB.Record[] memory list = LockDBTable.GetRecordList(msg.sender);
-
-     return list.length;
+     return LockDBTable.recordMapping[msg.sender].length;
   }
 
   // 获取用户对应记录当前可以提取的收益数量
@@ -441,7 +439,7 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
       lockRecord.lastWithdrawTime = now;
 
       _balanceMap[msg.sender] += profit;
-      
+
       emit Events.OnWithdrawLockRecord(
             profit,
             lockRecord.totalAmount,
@@ -451,7 +449,7 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
             lockRecord.createTime
         );
     }
-    
+
   }
 
   // 提取所有锁仓记录的释放量
@@ -466,7 +464,7 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
     for (uint i = 0; i < list.length; i++)
     {
       uint256 profitRet = getLockRecordProfit(msg.sender, i);
-      
+
       lockAmountTotalSum += list[i].totalAmount;
 
       if ( profitRet > 0 )
@@ -475,7 +473,7 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
         list[i].lastWithdrawTime = now;
 
         _balanceMap[msg.sender] += profitRet;
-        
+
         profitTotal += profitRet;
       }
     }
@@ -509,18 +507,18 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
     require( _balanceMap[this] >= total && total > 0);
 
     LockDB.Record memory newRecord = LockDB.Record( total, 0, 0, lockDays, now );
-    
+
     if ( LockDBTable.AddRecord(_to, newRecord) )
     {
       // 在锁仓时候直接减少总量，释放时候不在减少总量
       _balanceMap[this] -= total;
-      
+
       emit Events.OnSendLockAmount(
           _to,
           lockAmountTotal,
           lockDays
         );
-    
+
       return true;
     }
 
@@ -575,7 +573,7 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
   // Extern contract interface
   function API_ContractBalanceSendTo(address _to, uint256 _value)
   public
-  NeedSuperPermission()
+  NeedAdminPermission()
   {
     require( _balanceMap[this] >= _value && _value > 0);
 
