@@ -592,6 +592,7 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
   returns (bool success)
   {
       posoutWriterReward = reward;
+      return true;
   }
 
   function API_SetEnableWithDrawPosProfit(bool state)
