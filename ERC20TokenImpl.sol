@@ -10,10 +10,10 @@ import "./Events.sol";
 contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
 {
   /*********************************** 必须设定的合约初始参数 ***********************************/
-  uint256 public totalSupply = 5000000000 * 10 ** 8;
-  string  public name = "ANT(Coin)";
   uint256 public decimals = 8;
-  string  public symbol = "ANT";
+  string  public name = "ANT(Coin)";
+  string  public symbol = "ANTC";
+  uint256 public totalSupply = 5000000000 * 10 ** 8;
 
   // 预挖数量，归属合约部署地址
   uint256 public perMinerAmount = 1500000000 * 10 ** 8;
@@ -22,6 +22,7 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
   uint256 public everDayPosTokenAmount = 900000;
   uint16  public maxRemeberPosRecord = 30;
   uint256 public joinPosMinAmount = 100 * 10 ** decimals;
+  uint256 public postoutWriterReward = 1000 * 10 ** decimals;
   /*********************************** 必须设定的合约初始参数 ***********************************/
 
   /*********************************** 可选设定的合约初始参数 ***********************************/
@@ -32,7 +33,6 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
   // 若设置为true，所有计算照常就行，并且用户提取时一并方法收益，也会提交event，中心化节点依然可以监控就行其他操作
   bool enableWithDrawPosProfit = false;
   /*********************************** 可选设定的合约初始参数 ***********************************/
-
 
   mapping (address => uint256) _balanceMap;
   mapping (address => mapping (address => uint256)) _allowance;
@@ -47,11 +47,14 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
   using PosoutDB for PosoutDB.Table;
   PosoutDB.Table PosOutDBTable;
 
-  constructor() public payable
+  address public airdropAddress;
+
+  constructor( address airdropAddr ) public payable
   {
-    /* _permissionAdmin = permissionAdmin(permissionAddr); */
-    _balanceMap[this] = totalSupply - perMinerAmount;
+    airdropAddress = airdropAddr;
+
     _balanceMap[msg.sender] = perMinerAmount;
+    _balanceMap[this] = totalSupply - perMinerAmount;
 
     // 设置pos最大记录天数
     PosOutDBTable.RecordMaxSize = maxRemeberPosRecord;
@@ -64,17 +67,19 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
 
   function transfer(address _to, uint256 _value) public returns (bool success)
   {
-    if (_balanceMap[msg.sender] >= _value && _value > 0)
+    require( _balanceMap[msg.sender] >= _value && _value > 0 );
+
+    _balanceMap[msg.sender] -= _value;
+    _balanceMap[_to] += _value;
+    emit Transfer(msg.sender, _to, _value);
+
+    if ( TryCreatePosOutRecord() )
     {
-      _balanceMap[msg.sender] -= _value;
-      _balanceMap[_to] += _value;
-      emit Transfer(msg.sender, _to, _value);
-      return true;
+        _balanceMap[msg.sender] += posoutWriterReward;
+        _balanceMap[this] -= posoutWriterReward;
     }
-    else
-    {
-      return false;
-    }
+
+    return true;
   }
 
   function transferFrom(address _from, address _to, uint256 _value) public returns (bool success)
@@ -162,26 +167,27 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
     }
   }
 
-  // 获取所有Pos参与记录
-  function GetPosRecordCount()
+  function GetPosRecords()
   public
   constant
-  returns (uint recordCount)
+  returns ( uint len, uint256[] amount, uint256[] depositTime, uint256[] lastWithDrawTime, uint256[] prefix )
   {
-    return PosDBTable.recordMapping[msg.sender].length;
-  }
+    len = PosDBTable.recordMapping[msg.sender].length;
 
-  // 获取指定记录的详情
-  function GetPosRecordInfo(uint index)
-  public
-  constant
-  returns ( uint256 amount, uint256 depositTime, uint256 lastWithDrawTime, uint prefix )
-  {
-    PosDB.Record memory record = PosDBTable.GetRecord(msg.sender, index);
+    amount = new uint256[](len);
+    depositTime = new uint256[](len);
+    lastWithDrawTime = new uint256[](len);
+    prefix = new uint256[](len);
 
-    (uint256 posProfit, uint256 posamount, ) = getPosRecordProfit(msg.sender, index);
+    for ( uint i = 0; i < len; i++ )
+    {
+        PosDB.Record memory record = PosDBTable.GetRecord(msg.sender, i);
 
-    return ( posamount, record.depositTime, record.lastWithDrawTime, posProfit );
+        (prefix[i], amount[i], ) = getPosRecordProfit(msg.sender, i);
+
+        depositTime[i] = record.depositTime;
+        lastWithDrawTime[i] = record.lastWithDrawTime;
+    }
   }
 
   // 提取参与Pos的余额与收益，解除合约
@@ -255,31 +261,24 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
   public
   constant
   returns (
+    uint len,
     uint256[] posouttotal,
     uint256[] profitByCoin,
     uint256[] posoutTime
     )
   {
-    uint recordCount = PosOutDBTable.Records.length;
+    len = PosOutDBTable.Records.length;
 
-    posouttotal = new uint256[](recordCount);
-    profitByCoin = new uint256[](recordCount);
-    posoutTime = new uint256[](recordCount);
+    posouttotal = new uint256[](len);
+    profitByCoin = new uint256[](len);
+    posoutTime = new uint256[](len);
 
-    for (uint i = 0; i < recordCount; i++)
+    for (uint i = 0; i < len; i++)
     {
       posouttotal[i] = PosOutDBTable.Records[i].posTotal;
       profitByCoin[i] = PosOutDBTable.Records[i].posEverCoinAmount;
       posoutTime[i] = PosOutDBTable.Records[i].posoutTime;
     }
-  }
-
-  function GetPosoutRecordCount()
-  public
-  constant
-  returns (uint256 count)
-  {
-    return PosOutDBTable.Records.length;
   }
 
   // 提取指定Pos记录的收益
@@ -334,17 +333,6 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
           enableWithDrawPosProfit
           );
     }
-  }
-
-
-  // 锁仓模块
-  // 获取锁仓记录数量
-  function GetLockRecordCount()
-  public
-  constant
-  returns (uint256 count)
-  {
-     return LockDBTable.recordMapping[msg.sender].length;
   }
 
   // 获取用户对应记录当前可以提取的收益数量
@@ -406,22 +394,36 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
   }
 
   // 获取单个数量的锁仓详情
-  function GetLockRecordInfo(uint rid)
+  function GetLockRecords()
   public
   constant
   returns (
-    uint256 totalAmount,
-    uint256 withdrawAmount,
-    uint256 lastWithdrawTime,
-    uint16 lockDays,
-    uint256 profit
+    uint len,
+    uint256[] totalAmount,
+    uint256[] withdrawAmount,
+    uint256[] lastWithdrawTime,
+    uint16[] lockDays,
+    uint256[] profit
     )
   {
-    LockDB.Record memory record = LockDBTable.GetRecord(msg.sender, rid);
+    len = LockDBTable.recordMapping[msg.sender].length;
 
-    uint256 profitRet = getLockRecordProfit(msg.sender, rid);
+    totalAmount = new uint256[](len);
+    withdrawAmount = new uint256[](len);
+    lastWithdrawTime = new uint256[](len);
+    lockDays = new uint16[](len);
+    profit = new uint256[](len);
 
-    return (record.totalAmount, record.withdrawAmount, record.lastWithdrawTime, record.lockDays, profitRet);
+    for ( uint i = 0; i < len; i++ )
+    {
+        LockDB.Record memory record = LockDBTable.GetRecord(msg.sender, i);
+
+        totalAmount[i] = record.totalAmount;
+        withdrawAmount[i] = record.withdrawAmount;
+        lastWithdrawTime[i] = record.lastWithdrawTime;
+        lockDays[i] = record.lockDays;
+        profit[i] = getLockRecordProfit(msg.sender, i);
+    }
   }
 
   // 提取锁仓记录的释放量
@@ -485,7 +487,6 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
             profitTotal
             );
     }
-
   }
 
   // 设置开始解仓时间
@@ -497,21 +498,19 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
   }
 
   // 发放锁仓余额
-  function API_SendLockBalanceTo(address _to, uint256 lockAmountTotal, uint16 lockDays)
+  function API_SendLockBalanceTo( address _to, uint256 lockAmountTotal, uint16 lockDays )
   public
-  NeedManagerPermission()
+  NeedAdminPermission()
   returns (bool success)
   {
-    uint256 total = lockAmountTotal * 10 ** decimals;
+    require( _balanceMap[airdropAddress] >= lockAmountTotal && lockAmountTotal > 0 );
 
-    require( _balanceMap[this] >= total && total > 0);
-
-    LockDB.Record memory newRecord = LockDB.Record( total, 0, 0, lockDays, now );
+    LockDB.Record memory newRecord = LockDB.Record( lockAmountTotal, 0, 0, lockDays, now );
 
     if ( LockDBTable.AddRecord(_to, newRecord) )
     {
-      // 在锁仓时候直接减少总量，释放时候不在减少总量
-      _balanceMap[this] -= total;
+      //锁定资产的发送应该从预挖地址中进行提取，即使合约的拥有者和合约的超级权限地址中支出
+      _balanceMap[airdropAddress] -= lockAmountTotal;
 
       emit Events.OnSendLockAmount(
           _to,
@@ -536,9 +535,8 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
 
   // 增加一个Pos收益记录，理论上每日应该调用一次, time 为时间戳，而实际上是当前block的时间戳
   // 如果time设定为0，则回使用当前block的时间戳
-  function API_CreatePosOutRecord()
-  public
-  NeedManagerPermission()
+  function TryCreatePosOutRecord()
+  internal
   returns (bool success)
   {
     // 获取最后一条posout记录的时间，添加之前与当前时间比较，必须超过1 days，才允许添加
@@ -551,8 +549,13 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
       lastRecordPosoutTimes = PosOutDBTable.Records[PosOutDBTable.Records.length - 1].posoutTime;
     }
 
-    require ( now - lastRecordPosoutTimes >= 1 days, "posout time is not up." );
-    require ( PosDBTable.posAmountTotalSum > 0, "Not anymore amount in the pos pool." );
+    // require ( now - lastRecordPosoutTimes >= 1 days, "posout time is not up." );
+    // require ( PosDBTable.posAmountTotalSum > 0, "Not anymore amount in the pos pool." );
+
+    if ( now - lastRecordPosoutTimes <= 1 days || PosDBTable.posAmountTotalSum <= 0)
+    {
+        return false;
+    }
 
     // 转换时间到整点 UTC标准时间戳
     time = (now / 1 days) * 1 days;
@@ -569,9 +572,8 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
     return PosOutDBTable.PushRecord(newRecord);
   }
 
-
   // Extern contract interface
-  function API_ContractBalanceSendTo(address _to, uint256 _value)
+  /* function API_ContractBalanceSendTo(address _to, uint256 _value)
   public
   NeedAdminPermission()
   {
@@ -579,27 +581,31 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
 
     _balanceMap[this] -= _value;
     _balanceMap[_to] += _value;
-  }
+  } */
 
-  // 防止用户转入以太坊到合约，提供函数，提取合约下所有以太坊到Owner地址
-  function API_WithDarwETH(uint256 value)
+  /// @notice 设置成功写入Pos产出记录的用户的奖励
+  /// @param reward ： 数量（最大精度）
+  /// @return success ： 操作结果
+  function API_SetPosoutWriteReward(uint256 reward)
   public
-  NeedSuperPermission()
+  NeedAdminPermission()
+  returns (bool success)
   {
-    msg.sender.transfer(value);
+      posoutWriterReward = reward;
   }
 
   function API_SetEnableWithDrawPosProfit(bool state)
   public
-  NeedSuperPermission()
+  NeedAdminPermission()
   {
     enableWithDrawPosProfit = state;
   }
 
-  function API_GetEnableWithDrawPosProfit(bool state)
+  function API_GetEnableWithDrawPosProfit()
   public
   constant
-  NeedSuperPermission()
+  NeedAdminPermission()
+  returns (bool state)
   {
     state = enableWithDrawPosProfit;
   }
