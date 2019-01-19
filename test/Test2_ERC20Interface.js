@@ -78,8 +78,16 @@ contract('ERC20TokenImpl - Modules ERC20 Interface', function (accounts) {
         })
         .then(function(number){
             assert.equal(number.toString(), "25000000000000000")
+            return PALInstance.transfer(accounts[0], "75000000000000000", {
+                from : accounts[1]
+            })
         })
-
+        .then(function(tx){
+            return PALInstance.balanceOf.call(accounts[0])
+        })
+        .then(function(balance){
+            assert.equal(balance.toString(), "150000000000000000")
+        })
     })
 
 })

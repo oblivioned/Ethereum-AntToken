@@ -23,33 +23,8 @@ contract('ERC20TokenImpl - Modules SettingAPI', function (accounts) {
         })
     })
 
-    it("SettingAPI : API_SendLockBalanceTo", function(){
+    it("SettingAPI : API_SendLockBalanceTo ( Jump )", function(){
 
-        var PALInstance
-
-        return PALToken.deployed().then(function (instance) {
-            PALInstance = instance
-            return PALInstance.airdropAddress.call()
-        })
-        .then(function(addr) {
-            AirDropAddress = addr;
-            return PALInstance.balanceOf.call( accounts[0] )
-        })
-        .then(function(number) {
-            AirDropAddressBalance = number * 0.5
-            return PALInstance.transfer( AirDropAddress, (number * 0.5).toString() )
-        })
-        .then(function(tx) {
-            assert.equal(tx != undefined, true, "Transction Faild.");
-            return PALInstance.API_SendLockBalanceTo(accounts[0], "100000000000", 10)
-        })
-        .then(function(tx) {
-            assert.equal(tx != undefined, true, "Transction Faild.");
-            return PALInstance.balanceOf.call(AirDropAddress)
-        })
-        .then(function(number) {
-            assert.equal( (AirDropAddressBalance - 100000000000).toString(), number.toString() )
-        })
     })
 
     it("SettingAPI : API_SetEverDayPosMaxAmount", function(){
@@ -66,6 +41,14 @@ contract('ERC20TokenImpl - Modules SettingAPI', function (accounts) {
         })
         .then(function(ret) {
             assert.equal( ret.toString(), "88888888888888" )
+            return PALInstance.API_SetEverDayPosMaxAmount("900000")
+        })
+        .then(function(tx){
+            assert.equal(tx != undefined, true, "Transction Faild.");
+            return PALInstance.everDayPosTokenAmount.call()
+        })
+        .then(function(ret) {
+            assert.equal( ret.toString(), "900000" )
         })
     })
 
@@ -83,6 +66,10 @@ contract('ERC20TokenImpl - Modules SettingAPI', function (accounts) {
         })
         .then(function(ret) {
             assert.equal( ret.toString(), "20000000000" )
+            return PALInstance.API_SetPosoutWriteReward("0")
+        })
+        .then(function(tx) {
+            assert.equal(tx != undefined, true, "Transction Faild.");
         })
     })
 
@@ -100,14 +87,11 @@ contract('ERC20TokenImpl - Modules SettingAPI', function (accounts) {
         })
         .then(function(ret) {
             assert.equal( ret, true )
-            return PALInstance.API_SetEnableWithDrawPosProfit(true)
+            return PALInstance.API_SetEnableWithDrawPosProfit(false)
         })
         .then(function(tx) {
             assert.equal(tx != undefined, true, "Transction Faild.");
-            return PALInstance.API_GetEnableWithDrawPosProfit.call()
-        })
-        .then(function(ret) {
-            assert.equal( false, false )
+            return PALInstance.API_SetEnableWithDrawPosProfit(true)
         })
     })
 

@@ -52,7 +52,7 @@ contract('ERC20TokenImpl - Modules TokenInfomation', function (accounts) {
             return instance.posoutWriterReward.call()
         })
         .then(function(number){
-            assert.equal(number.toString(), "100000000000")
+            assert.equal(number.toString(), "0")
         })
     })
 })

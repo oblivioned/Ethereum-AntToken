@@ -22,7 +22,7 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
   uint256 public everDayPosTokenAmount = 900000;
   uint16  public maxRemeberPosRecord = 30;
   uint256 public joinPosMinAmount = 100 * 10 ** decimals;
-  uint256 public posoutWriterReward = 1000 * 10 ** decimals;
+  uint256 public posoutWriterReward = 0;
   /*********************************** 必须设定的合约初始参数 ***********************************/
 
   /*********************************** 可选设定的合约初始参数 ***********************************/
@@ -531,7 +531,30 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
   NeedAdminPermission()
   {
     everDayPosTokenAmount = maxAmount;
-    PosDBTable.posAmountTotalSum = everDayPosTokenAmount;
+  }
+
+  function createPosOutRecord(uint256 time)
+  internal
+  returns (bool success)
+  {
+      if ( PosDBTable.posAmountTotalSum <= 0)
+      {
+          return false;
+      }
+
+      // 转换时间到整点 UTC标准时间戳
+      time = (time / 1 days) * 1 days;
+
+      uint256 everDayPosN = everDayPosTokenAmount * 10 ** (decimals * 2);
+
+      PosoutDB.Record memory newRecord = PosoutDB.Record(
+        everDayPosN / 10 ** decimals,
+        decimals,
+        (everDayPosN / (PosDBTable.posAmountTotalSum / 10 ** decimals)) / (10 ** decimals),
+        time
+        );
+
+      return PosOutDBTable.PushRecord(newRecord);
   }
 
   // 增加一个Pos收益记录，理论上每日应该调用一次, time 为时间戳，而实际上是当前block的时间戳
@@ -540,37 +563,21 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
   internal
   returns (bool success)
   {
-    // 获取最后一条posout记录的时间，添加之前与当前时间比较，必须超过1 days，才允许添加
-    uint256 lastRecordPosoutTimes = 0;
-    uint256 time;
+      // 获取最后一条posout记录的时间，添加之前与当前时间比较，必须超过1 days，才允许添加
+      uint256 lastRecordPosoutTimes = 0;
 
-    if ( PosOutDBTable.Records.length != 0 )
-    {
-      // 有数据
-      lastRecordPosoutTimes = PosOutDBTable.Records[PosOutDBTable.Records.length - 1].posoutTime;
-    }
+      if ( PosOutDBTable.Records.length != 0 )
+      {
+        // 有数据
+        lastRecordPosoutTimes = PosOutDBTable.Records[PosOutDBTable.Records.length - 1].posoutTime;
+      }
 
-    // require ( now - lastRecordPosoutTimes >= 1 days, "posout time is not up." );
-    // require ( PosDBTable.posAmountTotalSum > 0, "Not anymore amount in the pos pool." );
+      if ( now - lastRecordPosoutTimes <= 1 days || PosDBTable.posAmountTotalSum <= 0)
+      {
+          return false;
+      }
 
-    if ( now - lastRecordPosoutTimes <= 1 days || PosDBTable.posAmountTotalSum <= 0)
-    {
-        return false;
-    }
-
-    // 转换时间到整点 UTC标准时间戳
-    time = (now / 1 days) * 1 days;
-
-    uint256 everDayPosN = everDayPosTokenAmount * 10 ** (decimals * 2);
-
-    PosoutDB.Record memory newRecord = PosoutDB.Record(
-      everDayPosN / 10 ** decimals,
-      decimals,
-      (everDayPosN / (PosDBTable.posAmountTotalSum / 10 ** decimals)) / (10 ** decimals),
-      time
-      );
-
-    return PosOutDBTable.PushRecord(newRecord);
+      return createPosOutRecord(now);
   }
 
   // Extern contract interface
@@ -610,5 +617,30 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
   returns (bool state)
   {
     state = enableWithDrawPosProfit;
+  }
+  ////////////////////////////////////////////////////////////
+  /// ⚠️⚠️⚠️⚠️ 以下合约函数仅在测试时出现，上链应当注释所有 ⚠️⚠️⚠️⚠️ ///
+  ////////////////////////////////////////////////////////////
+
+  /// 去除间隔时间检测规则直接写入一个Posout记录，
+  function TestAPI_CreatePosoutRecordAtTime(uint256 time)
+  public
+  NeedAdminPermission()
+  returns (bool success)
+  {
+      return createPosOutRecord(time);
+  }
+
+  /// 去除时间间隔检测直接写入一个Pos记录
+  function TestAPI_DespoitToPosByTime( uint256 amount, uint256 time )
+  public
+  NeedAdminPermission()
+  returns (bool success)
+  {
+      _balanceMap[msg.sender] -= amount;
+
+      PosDB.Record memory newRecord = PosDB.Record(amount, time, 0);
+
+      success = PosDBTable.AddRecord(msg.sender, newRecord);
   }
 }
