@@ -48,7 +48,7 @@ contract ERC20TokenInterface
 
     /// @notice 获取当前所有Posout记录
     /// @return len ： 数据长度
-    /// @return posouttotal ： 对应的pos唱出最大值
+    /// @return posouttotal ： 对应的pos产出最大值
     /// @return profitByCoin ： 每个最小精度一个代币获得收益
     /// @return posoutTime ： 产出时间
     function GetPosoutLists() public view returns ( uint len, uint256[] memory posouttotal, uint256[] memory profitByCoin, uint256[] memory posoutTime);

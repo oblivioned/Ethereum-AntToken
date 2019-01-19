@@ -61,6 +61,10 @@ library PosDB {
 
     PosDB.Record storage record = list[index];
 
+    require( dbtable.posAmountTotalSum - record.amount >= 0 );
+
+    dbtable.posAmountTotalSum -= record.amount;
+
     for (uint i = index; i < list.length - 1; i++)
     {
       list[i] = list[i + 1];
@@ -68,8 +72,6 @@ library PosDB {
 
     delete list[list.length - 1];
     list.length --;
-
-    dbtable.posAmountTotalSum -= record.amount;
 
     return true;
   }

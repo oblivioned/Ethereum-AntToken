@@ -22,7 +22,7 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
   uint256 public everDayPosTokenAmount = 900000;
   uint16  public maxRemeberPosRecord = 30;
   uint256 public joinPosMinAmount = 100 * 10 ** decimals;
-  uint256 public postoutWriterReward = 1000 * 10 ** decimals;
+  uint256 public posoutWriterReward = 1000 * 10 ** decimals;
   /*********************************** 必须设定的合约初始参数 ***********************************/
 
   /*********************************** 可选设定的合约初始参数 ***********************************/
@@ -117,7 +117,7 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
 
     _balanceMap[msg.sender] -= amount;
 
-    PosDB.Record memory newRecord = PosDB.Record(amount, now - 2 days, 0);
+    PosDB.Record memory newRecord = PosDB.Record(amount, now, 0);
 
     success = PosDBTable.AddRecord(msg.sender, newRecord);
 
@@ -197,7 +197,8 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
   {
     (posProfit, amount, distantPosoutTime) = getPosRecordProfit(msg.sender, posRecordIndex);
 
-    PosDBTable.recordMapping[msg.sender][posRecordIndex].lastWithDrawTime = distantPosoutTime;
+    // 拷贝一个内存实例，因为删除源数据
+    PosDB.Record memory indexRecord = PosDBTable.recordMapping[msg.sender][posRecordIndex];
 
     if ( PosDBTable.RemoveRecord(msg.sender, posRecordIndex) )
     {
@@ -212,8 +213,8 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
 
     emit Events.OnRescissionPosRecord(
         amount,
-        PosDBTable.recordMapping[msg.sender][posRecordIndex].depositTime,
-        PosDBTable.recordMapping[msg.sender][posRecordIndex].lastWithDrawTime,
+        indexRecord.depositTime,
+        indexRecord.lastWithDrawTime,
         posProfit,
         enableWithDrawPosProfit);
   }
@@ -227,21 +228,21 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
 
     for (uint i = 0; i < recordCount; i++)
     {
-      (uint256 posProfit, uint256 amount, ) = getPosRecordProfit(msg.sender, 0);
+        (uint256 posProfit, uint256 amount, ) = getPosRecordProfit( msg.sender, 0 );
 
-      if ( PosDBTable.RemoveRecord(msg.sender, 0) )
-      {
-        amountTotalSum += amount;
-        profitTotalSum += posProfit;
-
-        _balanceMap[msg.sender] += amount;
-
-        if (enableWithDrawPosProfit)
+        if ( PosDBTable.RemoveRecord(msg.sender, 0) )
         {
-          _balanceMap[address(this)] -= posProfit;
-          _balanceMap[msg.sender] += posProfit;
+            amountTotalSum += amount;
+            profitTotalSum += posProfit;
+
+            _balanceMap[msg.sender] += amount;
+
+            if ( enableWithDrawPosProfit )
+            {
+                _balanceMap[address(this)] -= posProfit;
+                _balanceMap[msg.sender] += posProfit;
+            }
         }
-      }
     }
 
     emit Events.OnRescissionPosRecordAll(amountTotalSum, profitTotalSum, enableWithDrawPosProfit);
