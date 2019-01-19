@@ -1,4 +1,4 @@
-pragma solidity ^0.4.25;
+pragma solidity >=0.5.0 <0.6.0;
 
 import "./ERC20TokenInterface.sol";
 import "./LockDB.sol";
@@ -117,7 +117,7 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
 
     _balanceMap[msg.sender] -= amount;
 
-    PosDB.Record memory newRecord = PosDB.Record(amount, now, 0);
+    PosDB.Record memory newRecord = PosDB.Record(amount, now - 2 days, 0);
 
     success = PosDBTable.AddRecord(msg.sender, newRecord);
 
@@ -563,9 +563,9 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
     uint256 everDayPosN = everDayPosTokenAmount * 10 ** (decimals * 2);
 
     PosoutDB.Record memory newRecord = PosoutDB.Record(
-      everDayPosN,
-      decimals * 2,
-      everDayPosN / (PosDBTable.posAmountTotalSum / 10 ** decimals),
+      everDayPosN / 10 ** decimals,
+      decimals,
+      (everDayPosN / (PosDBTable.posAmountTotalSum / 10 ** decimals)) / (10 ** decimals),
       time
       );
 
