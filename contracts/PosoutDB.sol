@@ -29,7 +29,7 @@ library PosoutDB {
 
     function GetRecordMaxSize(PosoutDB.Table storage dbtable)
     internal
-    constant
+    view
     returns (uint16 size)
     {
       return dbtable.RecordMaxSize;

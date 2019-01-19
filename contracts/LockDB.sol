@@ -44,16 +44,16 @@ library LockDB {
 
   function GetRecordList(LockDB.Table storage dbtable, address _owner)
   internal
-  constant
-  returns (LockDB.Record[] list)
+  view
+  returns (LockDB.Record[] memory list)
   {
     return dbtable.recordMapping[_owner];
   }
 
   function GetRecord(LockDB.Table storage dbtable, address _owner, uint index)
   internal
-  constant
-  returns (LockDB.Record record)
+  view
+  returns (LockDB.Record memory record)
   {
     return dbtable.recordMapping[_owner][index];
   }
@@ -79,7 +79,7 @@ library LockDB {
 
   function GetTotalAmount(LockDB.Table storage dbtable, address _owner)
   internal
-  constant
+  view
   returns (uint256 posTotal)
   {
     LockDB.Record[] storage list = dbtable.recordMapping[_owner];

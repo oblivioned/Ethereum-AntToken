@@ -28,7 +28,7 @@ contract ERC20TokenInterface
     /// @return depositTime ： 参与时间（block时间）
     /// @return lastWithDrawTime ： 最近一次提取的时间
     /// @return prefix ： 记录对应未领取的收益数量
-    function GetPosRecords() public constant returns ( uint len, uint256[] amount, uint256[] depositTime, uint256[] lastWithDrawTime, uint256[] prefix );
+    function GetPosRecords() public view returns ( uint len, uint256[] memory amount, uint256[] memory depositTime, uint256[] memory lastWithDrawTime, uint256[] memory prefix );
 
     /// @notice 提取参与Pos的余额与收益，解除合约
     /// @param posRecordIndex ： 记录检索号
@@ -44,14 +44,14 @@ contract ERC20TokenInterface
 
     /// @notice 获取Pos池总数
     /// @return sum ：数量
-    function GetCurrentPosSum() public constant returns (uint256 sum);
+    function GetCurrentPosSum() public view returns (uint256 sum);
 
     /// @notice 获取当前所有Posout记录
     /// @return len ： 数据长度
     /// @return posouttotal ： 对应的pos唱出最大值
     /// @return profitByCoin ： 每个最小精度一个代币获得收益
     /// @return posoutTime ： 产出时间
-    function GetPosoutLists() public constant returns ( uint len, uint256[] posouttotal, uint256[] profitByCoin, uint256[] posoutTime);
+    function GetPosoutLists() public view returns ( uint len, uint256[] memory posouttotal, uint256[] memory profitByCoin, uint256[] memory posoutTime);
 
     /// @notice 提取指定Pos记录的收益
     /// @return profit ： 收益数量
@@ -70,7 +70,7 @@ contract ERC20TokenInterface
     /// @return lastWithdrawTime ： 最近一次提取的时间
     /// @return lockDays ： 锁定的时间
     /// @return profit ： 当前本条记录可以领取的收益
-    function GetLockRecords() public constant returns ( uint len, uint256[] totalAmount, uint256[] withdrawAmount, uint256[] lastWithdrawTime, uint16[] lockDays, uint256[] profit);
+    function GetLockRecords() public view returns ( uint len, uint256[] memory totalAmount, uint256[] memory withdrawAmount, uint256[] memory lastWithdrawTime, uint16[] memory lockDays, uint256[] memory profit);
 
     /// @notice 提取锁仓记录的释放量
     /// @return profit ： 收益
@@ -85,12 +85,12 @@ contract ERC20TokenInterface
     uint8   public decimals;  //返回token使用的小数点后几位。比如如果设置为3，就是支持0.001表示.
     string  public symbol;   //token简称,like MTT
 
-    function balanceOf(address _owner) public constant returns (uint256 balance);
+    function balanceOf(address _owner) public view returns (uint256 balance);
     function transfer(address _to, uint256 _value) public returns (bool success);
     function transferFrom(address _from, address _to, uint256 _value) public returns (bool success);
 
     function approve(address _spender, uint256 _value) public returns (bool success);
-    function allowance(address _owner, address _spender) public constant returns (uint256 remaining);
+    function allowance(address _owner, address _spender) public view returns (uint256 remaining);
 
     event Transfer(address indexed _from, address indexed _to, uint256 _value);
     event Approval(address indexed _owner, address indexed _spender, uint256 _value);

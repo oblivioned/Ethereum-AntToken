@@ -37,16 +37,16 @@ library PosDB {
 
   function GetRecordList(PosDB.Table storage dbtable, address _owner)
   internal
-  constant
-  returns (PosDB.Record[] list)
+  view
+  returns (PosDB.Record[] memory list)
   {
     return dbtable.recordMapping[_owner];
   }
 
   function GetRecord(PosDB.Table storage dbtable, address _owner, uint index)
   internal
-  constant
-  returns (PosDB.Record record)
+  view
+  returns (PosDB.Record memory record)
   {
     return dbtable.recordMapping[_owner][index];
   }
@@ -76,7 +76,7 @@ library PosDB {
 
   function GetTotalAmount(PosDB.Table storage dbtable, address _owner)
   internal
-  constant
+  view
   returns (uint256 posTotal)
   {
     PosDB.Record[] storage list = dbtable.recordMapping[_owner];

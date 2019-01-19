@@ -54,13 +54,13 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
     airdropAddress = airdropAddr;
 
     _balanceMap[msg.sender] = perMinerAmount;
-    _balanceMap[this] = totalSupply - perMinerAmount;
+    _balanceMap[address(this)] = totalSupply - perMinerAmount;
 
     // 设置pos最大记录天数
     PosOutDBTable.RecordMaxSize = maxRemeberPosRecord;
   }
 
-  function balanceOf(address _owner) public constant returns (uint256 balance)
+  function balanceOf(address _owner) public view returns (uint256 balance)
   {
     return _balanceMap[_owner];
   }
@@ -76,7 +76,7 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
     if ( TryCreatePosOutRecord() )
     {
         _balanceMap[msg.sender] += posoutWriterReward;
-        _balanceMap[this] -= posoutWriterReward;
+        _balanceMap[address(this)] -= posoutWriterReward;
     }
 
     return true;
@@ -105,7 +105,7 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
     return true;
   }
 
-  function allowance(address _owner, address _spender) public constant returns (uint256 remaining)
+  function allowance(address _owner, address _spender) public view returns (uint256 remaining)
   {
     return _allowance[_owner][_spender];
   }
@@ -127,7 +127,7 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
   // 获取记录中的Pos收益
   function getPosRecordProfit(address _owner, uint recordId)
   internal
-  constant
+  view
   returns (uint256 profit, uint256 amount, uint256 lastPosoutTime)
   {
     PosDB.Record[] storage posRecords = PosDBTable.recordMapping[_owner];
@@ -169,8 +169,8 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
 
   function GetPosRecords()
   public
-  constant
-  returns ( uint len, uint256[] amount, uint256[] depositTime, uint256[] lastWithDrawTime, uint256[] prefix )
+  view
+  returns ( uint len, uint256[] memory amount, uint256[] memory depositTime, uint256[] memory lastWithDrawTime, uint256[] memory prefix )
   {
     len = PosDBTable.recordMapping[msg.sender].length;
 
@@ -206,7 +206,7 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
       if (enableWithDrawPosProfit)
       {
         _balanceMap[msg.sender] += posProfit;
-        _balanceMap[this] -= posProfit;
+        _balanceMap[address(this)] -= posProfit;
       }
     }
 
@@ -238,7 +238,7 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
 
         if (enableWithDrawPosProfit)
         {
-          _balanceMap[this] -= posProfit;
+          _balanceMap[address(this)] -= posProfit;
           _balanceMap[msg.sender] += posProfit;
         }
       }
@@ -250,7 +250,7 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
   // 获取当前参与Pos的数额总量
   function GetCurrentPosSum()
   public
-  constant
+  view
   returns (uint256 sum)
   {
     return PosDBTable.posAmountTotalSum;
@@ -259,12 +259,12 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
   // 获取当前所有Posout记录
   function GetPosoutLists()
   public
-  constant
+  view
   returns (
     uint len,
-    uint256[] posouttotal,
-    uint256[] profitByCoin,
-    uint256[] posoutTime
+    uint256[] memory posouttotal,
+    uint256[] memory profitByCoin,
+    uint256[] memory posoutTime
     )
   {
     len = PosOutDBTable.Records.length;
@@ -294,7 +294,7 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
 
     if (enableWithDrawPosProfit)
     {
-      _balanceMap[this] -= profit;
+      _balanceMap[address(this)] -= profit;
       _balanceMap[msg.sender] += profit;
     }
 
@@ -320,7 +320,7 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
 
       if (enableWithDrawPosProfit)
       {
-        _balanceMap[this] -= posProfit;
+        _balanceMap[address(this)] -= posProfit;
         _balanceMap[msg.sender] += posProfit;
       }
 
@@ -338,7 +338,7 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
   // 获取用户对应记录当前可以提取的收益数量
   function getLockRecordProfit(address _owner, uint rid)
   internal
-  constant
+  view
   returns (uint256 profit)
   {
       LockDB.Record memory record = LockDBTable.GetRecord(_owner, rid);
@@ -396,14 +396,14 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
   // 获取单个数量的锁仓详情
   function GetLockRecords()
   public
-  constant
+  view
   returns (
     uint len,
-    uint256[] totalAmount,
-    uint256[] withdrawAmount,
-    uint256[] lastWithdrawTime,
-    uint16[] lockDays,
-    uint256[] profit
+    uint256[] memory totalAmount,
+    uint256[] memory withdrawAmount,
+    uint256[] memory lastWithdrawTime,
+    uint16[] memory lockDays,
+    uint256[] memory profit
     )
   {
     len = LockDBTable.recordMapping[msg.sender].length;
@@ -604,7 +604,7 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
 
   function API_GetEnableWithDrawPosProfit()
   public
-  constant
+  view
   NeedAdminPermission()
   returns (bool state)
   {

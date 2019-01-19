@@ -7,9 +7,9 @@ contract PermissionCtl {
 
   function GetAdminList()
   public
-  constant
+  view
   NeedAdminPermission
-  returns ( address[] addresses )
+  returns ( address[] memory addresses )
   {
     return admins;
   }
