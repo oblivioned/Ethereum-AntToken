@@ -2,9 +2,6 @@ var PALToken = artifacts.require('./ERC20TokenImpl.sol')
 
 contract('ERC20TokenImpl - Modules SettingAPI', function (accounts) {
 
-    var AirDropAddress
-    var AirDropAddressBalance
-
     it("SettingAPI : API_SetUnlockAmountEnable", function(){
 
         var nowTimestamp = (new Date()).getTime();

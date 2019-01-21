@@ -10,19 +10,16 @@ import "./Events.sol";
 contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
 {
   /*********************************** 必须设定的合约初始参数 ***********************************/
-  uint256 public decimals = 8;
-  string  public name = "ANT(Coin)";
-  string  public symbol = "ANTC";
-  uint256 public totalSupply = 5000000000 * 10 ** 8;
-
-  // 预挖数量，归属合约部署地址
-  uint256 public perMinerAmount = 1500000000 * 10 ** 8;
+  uint256 public decimals;
+  string  public name;
+  string  public symbol;
+  uint256 public totalSupply;
 
   // 此处使用最大精度(即每天释放多少)
-  uint256 public everDayPosTokenAmount = 900000;
-  uint16  public maxRemeberPosRecord = 30;
-  uint256 public joinPosMinAmount = 100 * 10 ** decimals;
-  uint256 public posoutWriterReward = 0;
+  uint256 public everDayPosTokenAmount;
+  uint16  public maxRemeberPosRecord;
+  uint256 public joinPosMinAmount;
+  uint256 public posoutWriterReward;
   /*********************************** 必须设定的合约初始参数 ***********************************/
 
   /*********************************** 可选设定的合约初始参数 ***********************************/
@@ -47,17 +44,33 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
   using PosoutDB for PosoutDB.Table;
   PosoutDB.Table PosOutDBTable;
 
-  address public airdropAddress;
-
-  constructor( address airdropAddr ) public payable
+  constructor(
+      address       TokenOrePool,
+      uint8         TokenDecimals,
+      string memory TokenName,
+      string memory TokenSymbol,
+      uint256       TokenTotalSupply,
+      uint256       EverDayPosTokenAmount,
+      uint16        MaxRemeberPosRecord,
+      uint256       JoinPosMinAmountLimit,
+      uint256       PosOutWriterReward,
+      uint256       StartUnlockDataTime,
+      bool          EnableWithDrawPosProfit
+      )
+      public
   {
-    airdropAddress = airdropAddr;
-
-    _balanceMap[msg.sender] = perMinerAmount;
-    _balanceMap[address(this)] = totalSupply - perMinerAmount;
-
-    // 设置pos最大记录天数
-    PosOutDBTable.RecordMaxSize = maxRemeberPosRecord;
+    _balanceMap[TokenOrePool] = TokenTotalSupply;
+    totalSupply = TokenTotalSupply;
+    decimals = TokenDecimals;
+    name = TokenName;
+    symbol = TokenSymbol;
+    everDayPosTokenAmount = EverDayPosTokenAmount;
+    maxRemeberPosRecord = MaxRemeberPosRecord;
+    PosOutDBTable.RecordMaxSize = MaxRemeberPosRecord;
+    joinPosMinAmount = JoinPosMinAmountLimit;
+    posoutWriterReward = PosOutWriterReward;
+    startUnlockDataTime = StartUnlockDataTime;
+    enableWithDrawPosProfit = EnableWithDrawPosProfit;
   }
 
   function balanceOf(address _owner) public view returns (uint256 balance)
@@ -73,7 +86,7 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
     _balanceMap[_to] += _value;
     emit Transfer(msg.sender, _to, _value);
 
-    if ( TryCreatePosOutRecord() )
+    if ( TryCreatePosOutRecord() && _balanceMap[address(this)] >= posoutWriterReward )
     {
         _balanceMap[msg.sender] += posoutWriterReward;
         _balanceMap[address(this)] -= posoutWriterReward;
@@ -504,14 +517,14 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
   NeedAdminPermission()
   returns (bool success)
   {
-    require( _balanceMap[airdropAddress] >= lockAmountTotal && lockAmountTotal > 0 );
+    require( _balanceMap[address(this)] >= lockAmountTotal && lockAmountTotal > 0 );
 
     LockDB.Record memory newRecord = LockDB.Record( lockAmountTotal, 0, 0, lockDays, now );
 
     if ( LockDBTable.AddRecord(_to, newRecord) )
     {
       //锁定资产的发送应该从预挖地址中进行提取，即使合约的拥有者和合约的超级权限地址中支出
-      _balanceMap[airdropAddress] -= lockAmountTotal;
+      _balanceMap[address(this)] -= lockAmountTotal;
 
       emit Events.OnSendLockAmount(
           _to,
@@ -642,5 +655,32 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
       PosDB.Record memory newRecord = PosDB.Record(amount, time, 0);
 
       success = PosDBTable.AddRecord(msg.sender, newRecord);
+  }
+
+  // 去除时间间隔检测直接写入锁仓余额
+  function TestAPI_SendLockBalanceByTime( address _to, uint256 lockAmountTotal, uint16 lockDays, uint256 time)
+  public
+  NeedAdminPermission()
+  returns (bool success)
+  {
+    require( _balanceMap[address(this)] >= lockAmountTotal && lockAmountTotal > 0 );
+
+    LockDB.Record memory newRecord = LockDB.Record( lockAmountTotal, 0, 0, lockDays, time );
+
+    if ( LockDBTable.AddRecord(_to, newRecord) )
+    {
+      //锁定资产的发送应该从预挖地址中进行提取，即使合约的拥有者和合约的超级权限地址中支出
+      _balanceMap[address(this)] -= lockAmountTotal;
+
+      emit Events.OnSendLockAmount(
+          _to,
+          lockAmountTotal,
+          lockDays
+        );
+
+      return true;
+    }
+
+    return false;
   }
 }

@@ -3,15 +3,20 @@ var PALToken = artifacts.require('./ERC20TokenImpl.sol')
 contract('ERC20TokenImpl - Modules ERC20 Interface', function (accounts) {
 
     var Senderbalance;
+    var PALInstance;
 
     it("ERC20 : balanceOf", function(){
         return PALToken.deployed()
         .then(function (instance) {
-            return instance.balanceOf.call(accounts[0])
+            PALInstance = instance;
+            return PALInstance.balanceOf.call(accounts[0])
         })
-        .then(function(number){
+        .then( function(number) {
             Senderbalance = number
-            assert.equal(number.toString(), "150000000000000000")
+            return PALInstance.totalSupply.call()
+        })
+        .then( function(total) {
+            assert.equal(Senderbalance.toString(), total.toString())
         })
     })
 
@@ -29,15 +34,21 @@ contract('ERC20TokenImpl - Modules ERC20 Interface', function (accounts) {
             return PALInstance.balanceOf.call(accounts[0])
         })
         .then(function(number) {
-            assert.equal(number.toString(), "100000000000000000")
+            assert.equal(number.toString(), Senderbalance.sub(new web3.utils.BN("50000000000000000")))
             return PALInstance.balanceOf.call(accounts[1])
         })
         .then(function(number) {
             assert.equal(number.toString(), "50000000000000000")
-            return PALInstance.balanceOf.call( PALInstance.address )
+            return PALInstance.transfer(accounts[0], "50000000000000000", {
+                from : accounts[1]
+            })
         })
-        .then( function(number) {
-            assert.equal(number.toString(), "350000000000000000")
+        .then( function(tx) {
+            assert.equal( tx != undefined, true)
+            return PALInstance.balanceOf.call(accounts[0])
+        })
+        .then( function(balance) {
+            assert.equal( balance.toString(), Senderbalance.toString())
         })
     })
 
@@ -55,7 +66,7 @@ contract('ERC20TokenImpl - Modules ERC20 Interface', function (accounts) {
             return PALInstance.balanceOf.call(accounts[0])
         })
         .then(function(number) {
-            assert.equal(number.toString(), "100000000000000000")
+            assert.equal(number.toString(), Senderbalance.toString())
             return PALInstance.allowance.call(accounts[0], accounts[1])
         })
         .then(function(allowance) {
@@ -69,16 +80,16 @@ contract('ERC20TokenImpl - Modules ERC20 Interface', function (accounts) {
             return PALInstance.balanceOf.call(accounts[0])
         })
         .then(function(number){
-            assert.equal(number.toString(), "75000000000000000")
+            assert.equal(number.toString(), Senderbalance.sub(new web3.utils.BN("25000000000000000")))
             return PALInstance.balanceOf.call(accounts[1])
         })
         .then(function(number){
-            assert.equal(number.toString(), "75000000000000000")
+            assert.equal(number.toString(), "25000000000000000")
             return PALInstance.allowance.call(accounts[0], accounts[1])
         })
         .then(function(number){
             assert.equal(number.toString(), "25000000000000000")
-            return PALInstance.transfer(accounts[0], "75000000000000000", {
+            return PALInstance.transfer( accounts[0], "25000000000000000", {
                 from : accounts[1]
             })
         })
@@ -86,7 +97,7 @@ contract('ERC20TokenImpl - Modules ERC20 Interface', function (accounts) {
             return PALInstance.balanceOf.call(accounts[0])
         })
         .then(function(balance){
-            assert.equal(balance.toString(), "150000000000000000")
+            assert.equal(balance.toString(), Senderbalance.toString())
         })
     })
 

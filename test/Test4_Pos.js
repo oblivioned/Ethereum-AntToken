@@ -4,13 +4,17 @@ contract('ERC20TokenImpl - Modules Pos', function (accounts) {
 
     var SenderBalance;
     var PALInstance;
-
+    var totalSupplyBN;
     var BNZero = new web3.utils.BN("0");
 
     it("Config Test Data", function() {
 
         return PALToken.deployed().then(function (instance) {
             PALInstance = instance;
+            return PALInstance.totalSupply.call()
+        })
+        .then(function(total){
+            totalSupplyBN = total;
             return PALInstance.GetCurrentPosSum.call()
         })
         .then(function(sum) {
@@ -21,8 +25,12 @@ contract('ERC20TokenImpl - Modules Pos', function (accounts) {
             assert.equal(response.len , "0", "Begin starting this test GetPosRecords must be 0.")
             return PALInstance.balanceOf.call(accounts[0])
         })
-        .then(function(balance){
-            assert.equal(balance.toString() , "150000000000000000", "Begin starting this test balance must be 15E.")
+        .then(function(balance) {
+            assert.equal(balance.toString() , totalSupplyBN.toString(), "Begin starting this test balance must be " + totalSupplyBN.toString())
+            return PALInstance.transfer(PALInstance.address, totalSupplyBN.sub(new web3.utils.BN("150000000000000000")).toString())
+        })
+        .then(function(tx){
+            assert.equal(tx != undefined, true, "Transction Faild.");
             return PALInstance.DespoitToPos("100000000000")
         })
         .then(function() {
@@ -61,6 +69,10 @@ contract('ERC20TokenImpl - Modules Pos', function (accounts) {
         })
         .then( function(sum) {
             assert.equal( sum.toString(), "5500000000000", "PosPoll total sum error.");
+            return PALInstance.API_SetEnableWithDrawPosProfit(true)
+        })
+        .then( function(tx){
+            assert.equal(tx != undefined, true, "Transction Faild.");
         })
     })
 
@@ -347,24 +359,17 @@ contract('ERC20TokenImpl - Modules Pos', function (accounts) {
             return PALInstance.balanceOf(accounts[0])
         })
         .then(function(balance) {
+
             var amount = new web3.utils.BN("150000000000000000");
             var case1Profit = new web3.utils.BN("900000000000000");
             var case2Profit = new web3.utils.BN("3000000000");
 
+            // 150000000000000000
+            //    900000000000000
+            //         3000000000
+            // 150900003000000000
+
             assert.equal(balance.toString(), amount.add(case1Profit).add(case2Profit))
         })
-    })
-
-    it( "Pos : ProfitTest Case 3 : Synthetic test", function() {
-        // 900000 / 180000000 = 0.005(每Token收益)
-        // Pos池达到 30000000个 时候，当前设定的900000日产出可全部产出
-        // 用例说明 ：
-        // Account_0 ：
-
-        // Account_1 ：投入 179999900，一日后应有本息 1500000, 封顶数额 1003000，超过封顶数额得 1003000
-        // Account_2 ：投入       100，一日后应有本息 100.3，
-
-        var testBeginBalance = new web3.utils.BN("150900003000000000");
-
     })
 })

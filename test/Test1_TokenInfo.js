@@ -2,15 +2,6 @@ var PALToken = artifacts.require('./ERC20TokenImpl.sol')
 
 contract('ERC20TokenImpl - Modules TokenInfomation', function (accounts) {
 
-    it("Info : PerMinerAmount", function(){
-        return PALToken.deployed().then(function (instance) {
-            return instance.perMinerAmount.call()
-        })
-        .then(function(number){
-            assert.equal(number.toString(), "150000000000000000")
-        })
-    })
-
     it("Info : EverDayPosTokenAmount", function(){
         return PALToken.deployed().then(function (instance) {
             return instance.everDayPosTokenAmount.call()
