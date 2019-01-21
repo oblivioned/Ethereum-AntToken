@@ -55,6 +55,6 @@ module.exports = function(deployer)
       return instnace.AddAdmin("0xccd937d168f47c058ba9e68cab61c37b52d76dcf");
   })
   .then(function(tx){
-      console.log("SetAdmin Success");
+      console.log("   > SetAdmin Success");
   })
 };
