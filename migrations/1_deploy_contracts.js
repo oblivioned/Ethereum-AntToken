@@ -33,6 +33,9 @@ var StartUnlockDataTime = "0"
 // 默认是否开启真实释放Pos获得的代币收益
 var EnableWithDrawPosProfit = false
 
+// 设置Pos封顶收益率的千分比，比如设置3则是 0.3%， 30则是3%以此类推
+var PosMaxPorfitByThousandths = 3
+
 module.exports = function(deployer)
 {
   return web3.eth.getAccounts()
