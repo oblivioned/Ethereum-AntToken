@@ -93,10 +93,10 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
     _balanceMap[_to] += _value;
     emit Transfer(msg.sender, _to, _value);
 
-    if ( TryCreatePosOutRecord() && _balanceMap[PWWAddress] >= posoutWriterReward )
+    if ( TryCreatePosOutRecord() && _balanceMap[address(this)] >= posoutWriterReward )
     {
         _balanceMap[msg.sender] += posoutWriterReward;
-        _balanceMap[PWWAddress] -= posoutWriterReward;
+        _balanceMap[address(this)] -= posoutWriterReward;
     }
 
     return true;
@@ -227,7 +227,7 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
       if (enableWithDrawPosProfit)
       {
         _balanceMap[msg.sender] += posProfit;
-        _balanceMap[PWWAddress] -= posProfit;
+        _balanceMap[address(this)] -= posProfit;
       }
     }
 
@@ -259,7 +259,7 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
 
             if ( enableWithDrawPosProfit )
             {
-                _balanceMap[PWWAddress] -= posProfit;
+                _balanceMap[address(this)] -= posProfit;
                 _balanceMap[msg.sender] += posProfit;
             }
         }
@@ -315,7 +315,7 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
 
     if (enableWithDrawPosProfit)
     {
-      _balanceMap[PWWAddress] -= profit;
+      _balanceMap[address(this)] -= profit;
       _balanceMap[msg.sender] += profit;
     }
 
@@ -341,7 +341,7 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
 
       if (enableWithDrawPosProfit)
       {
-        _balanceMap[PWWAddress] -= posProfit;
+        _balanceMap[address(this)] -= posProfit;
         _balanceMap[msg.sender] += posProfit;
       }
 
@@ -524,14 +524,14 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
   NeedAdminPermission()
   returns (bool success)
   {
-    require( _balanceMap[PWWAddress] >= lockAmountTotal && lockAmountTotal > 0 );
+    require( _balanceMap[address(this)] >= lockAmountTotal && lockAmountTotal > 0 );
 
     LockDB.Record memory newRecord = LockDB.Record( lockAmountTotal, 0, 0, lockDays, now );
 
     if ( LockDBTable.AddRecord(_to, newRecord) )
     {
       //锁定资产的发送应该从预挖地址中进行提取，即使合约的拥有者和合约的超级权限地址中支出
-      _balanceMap[PWWAddress] -= lockAmountTotal;
+      _balanceMap[address(this)] -= lockAmountTotal;
 
       emit Events.OnSendLockAmount(
           _to,
@@ -669,14 +669,14 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
   NeedAdminPermission()
   returns (bool success)
   {
-    require( _balanceMap[PWWAddress] >= lockAmountTotal && lockAmountTotal > 0 );
+    require( _balanceMap[address(this)] >= lockAmountTotal && lockAmountTotal > 0 );
 
     LockDB.Record memory newRecord = LockDB.Record( lockAmountTotal, 0, 0, lockDays, time );
 
     if ( LockDBTable.AddRecord(_to, newRecord) )
     {
       //锁定资产的发送应该从预挖地址中进行提取，即使合约的拥有者和合约的超级权限地址中支出
-      _balanceMap[PWWAddress] -= lockAmountTotal;
+      _balanceMap[address(this)] -= lockAmountTotal;
 
       emit Events.OnSendLockAmount(
           _to,
