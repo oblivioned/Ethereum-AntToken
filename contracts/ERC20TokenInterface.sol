@@ -92,6 +92,6 @@ contract ERC20TokenInterface
     function approve(address _spender, uint256 _value) public returns (bool success);
     function allowance(address _owner, address _spender) public view returns (uint256 remaining);
 
-    event Transfer(address indexed _from, address indexed _to, uint256 _value);
-    event Approval(address indexed _owner, address indexed _spender, uint256 _value);
+    event Transfer(address indexed _from, address indexed _to, uint256 indexed _value);
+    event Approval(address indexed _owner, address indexed _spender, uint256 indexed _value);
 }
