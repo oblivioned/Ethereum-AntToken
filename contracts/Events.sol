@@ -17,9 +17,9 @@ contract Events {
       // 记录对应的数额
       uint256 indexed posAmount,
       // 记录创建的时间
-      uint256 indexed recordCreateTime,
+      uint256 recordCreateTime,
       // 记录最后领取收益的时间
-      uint256 indexed lastWithDrawTime,
+      uint256 lastWithDrawTime,
       // 提取时候残留一并读取的收益
       uint256 indexed posProfit,
       /* is send token profix to owner address. */
@@ -41,9 +41,9 @@ contract Events {
       // pos记录对应的数额
       uint256 indexed amount,
       // pos记录对应的创建时间
-      uint256 indexed depositTime,
+      uint256 depositTime,
       // pos记录最后一次提取的时间
-      uint256 indexed lastWithDrawTime,
+      uint256 lastWithDrawTime,
       // 提取的收益数
       uint256 indexed profit,
       /* is send token profix to owner address. */
@@ -86,11 +86,11 @@ contract Events {
       // 记录中已提取的总量
       uint256 indexed withdrawAmount,
       // 记录中上一次提取的时间
-      uint256 indexed lastWithdrawTime,
+      uint256 lastWithdrawTime,
       // 记录中锁定天数
-      uint16 indexed lockDays,
+      uint16 lockDays,
       // 记录创建时间
-      uint256 indexed createTime
+      uint256 createTime
     );
 
     /* 用户领取所有锁仓记录 */

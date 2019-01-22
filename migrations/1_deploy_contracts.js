@@ -1,7 +1,7 @@
 const ERC20TokenImpl = artifacts.require("ERC20TokenImpl");
 
 // 持币地址，可以是一个地址，也可以是一个合约地址
-var TokenOrePool = ""
+var TokenOrePool = "0x0121eb9333ce8f36c24b5976bd54d47cbe839d70"
 
 // 代币的精度
 var TokenDecimals = "8"
@@ -51,6 +51,7 @@ module.exports = function(deployer)
           JoinPosMinAmountLimit,
           PosOutWriterReward,
           StartUnlockDataTime,
+          PosMaxPorfitByThousandths,
           EnableWithDrawPosProfit
       );
   })
