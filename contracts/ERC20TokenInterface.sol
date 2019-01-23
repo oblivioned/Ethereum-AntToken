@@ -4,8 +4,6 @@ contract ERC20TokenInterface
 {
     /// @notice 预挖数量
     uint256 public perMinerAmount;
-    /// @notice 日Pos最大值
-    uint256 public everDayPosTokenAmount;
     /// @notice 最大记录Pos产出记录的数量
     uint16  public maxRemeberPosRecord;
     /// @notice 签约参与Pos的最小值

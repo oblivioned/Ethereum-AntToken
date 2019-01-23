@@ -8,15 +8,11 @@ library PosoutDB {
       // 当次POS产出最大数量
       uint256 posTotal;
 
-      // 数值精度
-      uint256 posDecimal;
-
-      // 每个Token获得对应的收益
-      uint256 posEverCoinAmount;
-
       // 产出时间
       uint256  posoutTime;
 
+      // 本次产出收益的千分比
+      uint256 thousandthRatio;
     }
 
     struct Table

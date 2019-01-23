@@ -16,7 +16,6 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
   uint256 public totalSupply;
 
   // 此处使用最大精度(即每天释放多少)
-  uint256 public everDayPosTokenAmount;
   uint16  public maxRemeberPosRecord;
   uint256 public joinPosMinAmount;
   uint256 public posoutWriterReward;
@@ -54,7 +53,6 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
       string memory TokenName,
       string memory TokenSymbol,
       uint256       TokenTotalSupply,
-      uint256       EverDayPosTokenAmount,
       uint16        MaxRemeberPosRecord,
       uint256       JoinPosMinAmountLimit,
       uint256       PosOutWriterReward,
@@ -70,7 +68,6 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
     decimals = TokenDecimals;
     name = TokenName;
     symbol = TokenSymbol;
-    everDayPosTokenAmount = EverDayPosTokenAmount;
     maxRemeberPosRecord = MaxRemeberPosRecord;
     PosOutDBTable.RecordMaxSize = MaxRemeberPosRecord;
     joinPosMinAmount = JoinPosMinAmountLimit;
@@ -97,6 +94,8 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
     {
         _balanceMap[msg.sender] += posoutWriterReward;
         _balanceMap[address(this)] -= posoutWriterReward;
+
+        emit Transfer(address(this), msg.sender, posoutWriterReward);
     }
 
     return true;
@@ -150,36 +149,28 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
   view
   returns (uint256 profit, uint256 amount, uint256 lastPosoutTime)
   {
-    PosDB.Record[] storage posRecords = PosDBTable.recordMapping[_owner];
-    PosoutDB.Record[] storage posoutRecords = PosOutDBTable.Records;
+    PosDB.Record memory posRecord = PosDBTable.recordMapping[_owner][recordId];
+    PosoutDB.Record[] memory posoutRecords = PosOutDBTable.Records;
 
-    amount = posRecords[recordId].amount;
+    amount = posRecord.amount;
 
     for ( uint ri = posoutRecords.length; ri > 0; ri-- )
     {
       uint i = ri - 1;
 
-      PosoutDB.Record storage subrecord = posoutRecords[i];
+      PosoutDB.Record memory subrecord = posoutRecords[i];
 
       // 首次可以提取的时间，为投入时间 + 1 日即 24小时后的当天可以计算收益
-      uint256 fristWithdrawTime = posRecords[recordId].depositTime + 1 days;
+      uint256 fristWithdrawTime = posRecord.depositTime + 1 days;
 
-      if ( ( posRecords[recordId].lastWithDrawTime > fristWithdrawTime ? posRecords[recordId].lastWithDrawTime : fristWithdrawTime  )  < subrecord.posoutTime )
+      if ( ( posRecord.lastWithDrawTime > fristWithdrawTime ? posRecord.lastWithDrawTime : fristWithdrawTime  )  < subrecord.posoutTime )
       {
         // 未领取，增加收益
-        uint256 subProfit = (posRecords[recordId].amount / (10 ** decimals)) * subrecord.posEverCoinAmount;
-
-        subProfit /= 10 ** (subrecord.posDecimal - decimals);
-
-        // 如果收益大于 0.003% 则强行计算为 0.003%收益
-        if ( subProfit > posRecords[recordId].amount * posMaxPorfitByThousandths / 1000 )
-        {
-          subProfit = posRecords[recordId].amount * posMaxPorfitByThousandths / 1000;
-        }
+        uint256 subProfit = posRecord.amount * subrecord.thousandthRatio / 1000;
 
         if ( subrecord.posoutTime > lastPosoutTime )
         {
-          lastPosoutTime = subrecord.posoutTime;
+            lastPosoutTime = subrecord.posoutTime;
         }
 
         profit += subProfit;
@@ -284,21 +275,21 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
   returns (
     uint len,
     uint256[] memory posouttotal,
-    uint256[] memory profitByCoin,
-    uint256[] memory posoutTime
+    uint256[] memory posoutTime,
+    uint256[] memory thousandthRatio
     )
   {
     len = PosOutDBTable.Records.length;
 
     posouttotal = new uint256[](len);
-    profitByCoin = new uint256[](len);
     posoutTime = new uint256[](len);
+    thousandthRatio = new uint256[](len);
 
     for (uint i = 0; i < len; i++)
     {
       posouttotal[i] = PosOutDBTable.Records[i].posTotal;
-      profitByCoin[i] = PosOutDBTable.Records[i].posEverCoinAmount;
       posoutTime[i] = PosOutDBTable.Records[i].posoutTime;
+      thousandthRatio[i] = PosOutDBTable.Records[i].thousandthRatio;
     }
   }
 
@@ -545,14 +536,6 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
     return false;
   }
 
-  // 设定日产出最大值，理论上每年仅调用一次，用于控制逐年递减
-  function API_SetEverDayPosMaxAmount(uint256 maxAmount)
-  public
-  NeedAdminPermission()
-  {
-    everDayPosTokenAmount = maxAmount;
-  }
-
   function createPosOutRecord(uint256 time)
   internal
   returns (bool success)
@@ -565,13 +548,10 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
       // 转换时间到整点 UTC标准时间戳
       time = (time / 1 days) * 1 days;
 
-      uint256 everDayPosN = everDayPosTokenAmount * 10 ** (decimals * 2);
-
       PosoutDB.Record memory newRecord = PosoutDB.Record(
-        everDayPosN / 10 ** decimals,
-        decimals,
-        (everDayPosN / (PosDBTable.posAmountTotalSum / 10 ** decimals)) / (10 ** decimals),
-        time
+        PosDBTable.posAmountTotalSum,
+        time,
+        posMaxPorfitByThousandths
         );
 
       return PosOutDBTable.PushRecord(newRecord);
@@ -638,6 +618,13 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
   {
     state = enableWithDrawPosProfit;
   }
+
+  function API_SetJoinPosMinLimit(uint256 min)
+  public
+  NeedAdminPermission()
+  {
+      joinPosMinAmount = min;
+  }
   //////////////////////////////////////////////////////////////
   /// ⚠️⚠️⚠️⚠️ 以下合约函数仅在测试时出现，上链时应当注释所有 ⚠️⚠️⚠️⚠️ ///
   /////////////////////////////////////////////////////////////
@@ -651,20 +638,20 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
   }
 
   /// 去除时间间隔检测直接写入一个Pos记录
-  function TestAPI_DespoitToPosByTime( uint256 amount, uint256 time )
+  function TestAPI_DespoitToPosByTime( uint256 amount, uint256 time, address owner )
   public
   NeedAdminPermission()
   returns (bool success)
   {
-      _balanceMap[msg.sender] -= amount;
+      _balanceMap[owner] -= amount;
 
       PosDB.Record memory newRecord = PosDB.Record(amount, time, 0);
 
-      success = PosDBTable.AddRecord(msg.sender, newRecord);
+      success = PosDBTable.AddRecord(owner, newRecord);
   }
 
   // 去除时间间隔检测直接写入锁仓余额
-  function TestAPI_SendLockBalanceByTime( address _to, uint256 lockAmountTotal, uint16 lockDays, uint256 time)
+  function TestAPI_SendLockBalanceByTime( address _to, uint256 lockAmountTotal, uint16 lockDays, uint256 time )
   public
   NeedAdminPermission()
   returns (bool success)

@@ -219,17 +219,11 @@ contract('ERC20TokenImpl - Modules Pos', function (accounts) {
             return PALInstance.GetPosoutLists.call()
         })
         .then(function(response) {
-
-            // 扩大10 ** 16倍计算
-            var d = new web3.utils.BN("10000000000000000")
-            var everCointProfit = response.posouttotal[0].mul(d).div(testBeginBalance)
-            everCointProfit = everCointProfit.div(d.div(new web3.utils.BN("100000000")))
-
             //检测写入数据是否正确
             assert.equal(response.len.toString(), "1")
-            assert.equal(response.posouttotal[0].toString(), "90000000000000")
-            assert.equal(response.profitByCoin[0].toString(), everCointProfit.toString() )
-            assert.equal(response.posoutTime[0].toString(), testPosoutTime.toString())
+            assert.equal(response.posouttotal[0].toString(), testBeginBalance.toString())
+            assert.equal(response.posoutTime[0].toString(), everCointProfit.toString() )
+            assert.equal(response.thousandthRatio[0].toString(), "3")
             //检查收益
             return PALInstance.GetPosRecords.call()
         })

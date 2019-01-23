@@ -1,15 +1,48 @@
 var PALToken = artifacts.require('./ERC20TokenImpl.sol')
 
-contract('ERC20TokenImpl - Modules TokenInfomation', function (accounts) {
+var FX2CachePage = /** @class */ (function (pageIdentifier) {
 
-    it("Info : EverDayPosTokenAmount", function(){
-        return PALToken.deployed().then(function (instance) {
-            return instance.everDayPosTokenAmount.call()
-        })
-        .then(function(number){
-            assert.equal(number.toString(), "900000")
-        })
-    })
+    var _identifier;
+    var _cachemap = {}
+
+    function TimeStamp() {
+
+        return (new Date()).valueOf();
+    }
+
+    function SetCache( name, value ) {
+
+        _cachemap[name] = value;
+    }
+
+    function GetCache( name ) {
+
+        return _cachemap[name];
+    }
+})
+
+
+var FX2CacheManager = /** @class */ (function () {
+
+    var _pageManager = {}
+
+    function CreateCachePage(identifier) {
+
+        return new FX2CachePage(identifier);
+    }
+
+    function AddCachePage(page) {
+        _pageManager[page._identifier] = page;
+    }
+
+    function GetCachePage(identifier)
+    {
+        return _pageManager[identifier];
+    }
+
+}
+
+contract('ERC20TokenImpl - Modules TokenInfomation', function (accounts) {
 
     it("Info : MaxRemeberPosRecord", function(){
         return PALToken.deployed().then(function (instance) {
