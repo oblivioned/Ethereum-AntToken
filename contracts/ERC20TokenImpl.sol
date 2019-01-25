@@ -510,30 +510,57 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
   }
 
   // 发放锁仓余额
-  function API_SendLockBalanceTo( address _to, uint256 lockAmountTotal, uint16 lockDays )
+//   function API_SendLockBalanceTo( address _to, uint256 lockAmountTotal, uint16 lockDays )
+//   public
+//   NeedAdminPermission()
+//   returns (bool success)
+//   {
+//     require( _balanceMap[address(this)] >= lockAmountTotal && lockAmountTotal > 0 );
+
+//     LockDB.Record memory newRecord = LockDB.Record( lockAmountTotal, 0, 0, lockDays, now );
+
+//     if ( LockDBTable.AddRecord(_to, newRecord) )
+//     {
+//       //锁定资产的发送应该从预挖地址中进行提取，即使合约的拥有者和合约的超级权限地址中支出
+//       _balanceMap[address(this)] -= lockAmountTotal;
+
+//       emit Events.OnSendLockAmount(
+//           _to,
+//           lockAmountTotal,
+//           lockDays
+//         );
+
+//       return true;
+//     }
+
+//     return false;
+//   }
+  
+  function API_SendLockBalanceGroup( address[] memory _toList, uint256[] memory _lockAmountTotalList, uint16[] memory _lockDays )
   public
   NeedAdminPermission()
   returns (bool success)
   {
-    require( _balanceMap[address(this)] >= lockAmountTotal && lockAmountTotal > 0 );
+        require( _toList.length == _lockAmountTotalList.length && _lockAmountTotalList.length == _lockDays.length );
+        
+        for (uint i = 0; i < _toList.length; i++)
+        {
+            require( _lockAmountTotalList[i] > 0 &&  _balanceMap[address(this)] >= _lockAmountTotalList[i]);
+            
+            LockDB.Record memory newRecord = LockDB.Record( _lockAmountTotalList[i], 0, 0, _lockDays[i], now );
+            require( LockDBTable.AddRecord(_toList[i], newRecord) );
+        
+            //锁定资产的发送应该从预挖地址中进行提取，即使合约的拥有者和合约的超级权限地址中支出
+            _balanceMap[address(this)] -= _lockAmountTotalList[i];
 
-    LockDB.Record memory newRecord = LockDB.Record( lockAmountTotal, 0, 0, lockDays, now );
-
-    if ( LockDBTable.AddRecord(_to, newRecord) )
-    {
-      //锁定资产的发送应该从预挖地址中进行提取，即使合约的拥有者和合约的超级权限地址中支出
-      _balanceMap[address(this)] -= lockAmountTotal;
-
-      emit Events.OnSendLockAmount(
-          _to,
-          lockAmountTotal,
-          lockDays
-        );
-
-      return true;
-    }
-
-    return false;
+            emit Events.OnSendLockAmount( 
+                _toList[i],
+                _lockAmountTotalList[i],
+                _lockDays[i]
+            );
+        }
+        
+        return true;
   }
 
   function createPosOutRecord(uint256 time)
@@ -629,51 +656,51 @@ contract ERC20TokenImpl is ERC20TokenInterface,PermissionCtl,Events
   /// ⚠️⚠️⚠️⚠️ 以下合约函数仅在测试时出现，上链时应当注释所有 ⚠️⚠️⚠️⚠️ ///
   /////////////////////////////////////////////////////////////
   /// 去除间隔时间检测规则直接写入一个Posout记录，
-  function TestAPI_CreatePosoutRecordAtTime(uint256 time)
-  public
-  NeedAdminPermission()
-  returns (bool success)
-  {
-      return createPosOutRecord(time);
-  }
+//   function TestAPI_CreatePosoutRecordAtTime(uint256 time)
+//   public
+//   NeedAdminPermission()
+//   returns (bool success)
+//   {
+//       return createPosOutRecord(time);
+//   }
 
-  /// 去除时间间隔检测直接写入一个Pos记录
-  function TestAPI_DespoitToPosByTime( uint256 amount, uint256 time, address owner )
-  public
-  NeedAdminPermission()
-  returns (bool success)
-  {
-      _balanceMap[owner] -= amount;
+//   /// 去除时间间隔检测直接写入一个Pos记录
+//   function TestAPI_DespoitToPosByTime( uint256 amount, uint256 time, address owner )
+//   public
+//   NeedAdminPermission()
+//   returns (bool success)
+//   {
+//       _balanceMap[owner] -= amount;
 
-      PosDB.Record memory newRecord = PosDB.Record(amount, time, 0);
+//       PosDB.Record memory newRecord = PosDB.Record(amount, time, 0);
 
-      success = PosDBTable.AddRecord(owner, newRecord);
-  }
+//       success = PosDBTable.AddRecord(owner, newRecord);
+//   }
 
-  // 去除时间间隔检测直接写入锁仓余额
-  function TestAPI_SendLockBalanceByTime( address _to, uint256 lockAmountTotal, uint16 lockDays, uint256 time )
-  public
-  NeedAdminPermission()
-  returns (bool success)
-  {
-    require( _balanceMap[address(this)] >= lockAmountTotal && lockAmountTotal > 0 );
+//   // 去除时间间隔检测直接写入锁仓余额
+//   function TestAPI_SendLockBalanceByTime( address _to, uint256 lockAmountTotal, uint16 lockDays, uint256 time )
+//   public
+//   NeedAdminPermission()
+//   returns (bool success)
+//   {
+//     require( _balanceMap[address(this)] >= lockAmountTotal && lockAmountTotal > 0 );
 
-    LockDB.Record memory newRecord = LockDB.Record( lockAmountTotal, 0, 0, lockDays, time );
+//     LockDB.Record memory newRecord = LockDB.Record( lockAmountTotal, 0, 0, lockDays, time );
 
-    if ( LockDBTable.AddRecord(_to, newRecord) )
-    {
-      //锁定资产的发送应该从预挖地址中进行提取，即使合约的拥有者和合约的超级权限地址中支出
-      _balanceMap[address(this)] -= lockAmountTotal;
+//     if ( LockDBTable.AddRecord(_to, newRecord) )
+//     {
+//       //锁定资产的发送应该从预挖地址中进行提取，即使合约的拥有者和合约的超级权限地址中支出
+//       _balanceMap[address(this)] -= lockAmountTotal;
 
-      emit Events.OnSendLockAmount(
-          _to,
-          lockAmountTotal,
-          lockDays
-        );
+//       emit Events.OnSendLockAmount(
+//           _to,
+//           lockAmountTotal,
+//           lockDays
+//         );
 
-      return true;
-    }
+//       return true;
+//     }
 
-    return false;
-  }
+//     return false;
+//   }
 }

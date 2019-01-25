@@ -19,10 +19,10 @@ var TokenTotalSupply = "500000000000000000"
 var MaxRemeberPosRecord = "30"
 
 // 参与Pos的最小额度（最大精度）
-var JoinPosMinAmountLimit = "10000000000"
+var JoinPosMinAmountLimit = "100000000000"
 
 // 成功计算Posout记录的用户的奖励（最大精度）
-var PosOutWriterReward = "0"
+var PosOutWriterReward = "10000000000"
 
 // 锁仓开始释放的时间（时间戳11位，与ETH的时间戳格式相同）
 var StartUnlockDataTime = "0"
